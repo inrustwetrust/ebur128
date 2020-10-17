@@ -325,7 +325,7 @@ mod specialized {
     #[derive(Debug)]
     pub(super) struct Interp4F<F: Frame> {
         filter: [[f32; FACTOR4]; FACTOR4_INPUT_LENGTH],
-        buffer: [F; FACTOR4_INPUT_LENGTH],
+        buffer: [F; 2 * FACTOR4_INPUT_LENGTH],
         buffer_pos: usize,
     }
 
@@ -358,7 +358,7 @@ mod specialized {
 
             Self {
                 filter,
-                buffer: Default::default(),
+                buffer: [Default::default(); 2 * FACTOR4_INPUT_LENGTH],
                 buffer_pos: (FACTOR4_INPUT_LENGTH) - 1,
             }
         }
@@ -369,26 +369,20 @@ mod specialized {
 
         pub(super) fn push(&mut self, frame: &F) -> [F; FACTOR4] {
             // Write in Frames in reverse, to enable forward-scanning with filter
-            self.buffer_pos = (self.buffer_pos + self.buffer.len() - 1) % self.buffer.len();
+            self.buffer_pos = (self.buffer_pos + FACTOR4_INPUT_LENGTH - 1) % FACTOR4_INPUT_LENGTH;
             self.buffer[self.buffer_pos] = *frame;
+            self.buffer[self.buffer_pos + FACTOR4_INPUT_LENGTH] = *frame;
 
             let mut output: [F; FACTOR4] = Default::default();
 
-            let mut filterp = 0;
-
-            for input_frame in &self.buffer[self.buffer_pos..] {
-                let filter_coeffs = &self.filter[filterp];
+            for (input_frame, filter_coeffs) in self.buffer
+                [self.buffer_pos..(self.buffer_pos + FACTOR4_INPUT_LENGTH)]
+                .iter()
+                .zip(&self.filter)
+            {
                 for (output_frame, coeff) in Iterator::zip(output.iter_mut(), filter_coeffs) {
                     output_frame.scale_add(input_frame, *coeff);
                 }
-                filterp += 1;
-            }
-            for input_frame in &self.buffer[..self.buffer_pos] {
-                let filter_coeffs = &self.filter[filterp];
-                for (output_frame, coeff) in Iterator::zip(output.iter_mut(), filter_coeffs) {
-                    output_frame.scale_add(input_frame, *coeff);
-                }
-                filterp += 1;
             }
 
             output
@@ -413,7 +407,7 @@ mod specialized {
     #[derive(Debug)]
     pub(super) struct Interp2F<F: Frame> {
         filter: [[f32; FACTOR2]; FACTOR2_INPUT_LENGTH],
-        buffer: [F; FACTOR2_INPUT_LENGTH],
+        buffer: [F; 2 * FACTOR2_INPUT_LENGTH],
         buffer_pos: usize,
     }
 
@@ -446,33 +440,27 @@ mod specialized {
 
             Self {
                 filter,
-                buffer: Default::default(),
+                buffer: [Default::default(); 2 * FACTOR2_INPUT_LENGTH],
                 buffer_pos: (FACTOR2_INPUT_LENGTH) - 1,
             }
         }
 
         pub(super) fn push(&mut self, frame: &F) -> [F; FACTOR2] {
             // Write in Frames in reverse, to enable forward-scanning with filter
-            self.buffer_pos = (self.buffer_pos + self.buffer.len() - 1) % self.buffer.len();
+            self.buffer_pos = (self.buffer_pos + FACTOR2_INPUT_LENGTH - 1) % FACTOR2_INPUT_LENGTH;
             self.buffer[self.buffer_pos] = *frame;
+            self.buffer[self.buffer_pos + FACTOR2_INPUT_LENGTH] = *frame;
 
             let mut output: [F; FACTOR2] = Default::default();
 
-            let mut filterp = 0;
-
-            for input_frame in &self.buffer[self.buffer_pos..] {
-                let filter_coeffs = &self.filter[filterp];
+            for (input_frame, filter_coeffs) in self.buffer
+                [self.buffer_pos..(self.buffer_pos + FACTOR2_INPUT_LENGTH)]
+                .iter()
+                .zip(&self.filter)
+            {
                 for (output_frame, coeff) in Iterator::zip(output.iter_mut(), filter_coeffs) {
                     output_frame.scale_add(input_frame, *coeff);
                 }
-                filterp += 1;
-            }
-            for input_frame in &self.buffer[..self.buffer_pos] {
-                let filter_coeffs = &self.filter[filterp];
-                for (output_frame, coeff) in Iterator::zip(output.iter_mut(), filter_coeffs) {
-                    output_frame.scale_add(input_frame, *coeff);
-                }
-                filterp += 1;
             }
 
             output
@@ -494,7 +482,7 @@ mod specialized {
         }
 
         pub(super) fn reset(&mut self) {
-            self.buffer = Default::default();
+            self.buffer = [Default::default(); 2 * FACTOR2_INPUT_LENGTH];
         }
     }
 }
